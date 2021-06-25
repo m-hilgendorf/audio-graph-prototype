@@ -1,0 +1,11 @@
+{
+  "name": "audio-graph-scheduler",
+  "description": "audio graph algorithms",
+  "license": "GPL-3.0-or-later",
+  "devDependencies": {
+    "typescript": "^4.3.4",
+    "prettier": "^2.3.1"
+  },
+  "dependencies": {
+  }
+}
