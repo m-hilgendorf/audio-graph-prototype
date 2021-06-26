@@ -1,3 +1,22 @@
+
+/******************************************************************************
+audio-graph-prototype: demonstration of a node scheduling algorithm.
+Copyright (C) 2021  Michael Hilgendorf
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+******************************************************************************/
+
 export {}
 // We don't care about what a buffer looks like internally
 type Buffer = {
@@ -75,7 +94,7 @@ function schedule(root: Node): Scheduled[] {
 
       // for each input port, find the input buffer and solve for its latency
       for (let input of node.inputs) {
-        // if the input port is connected, solve the node on the other side 
+        // if the input port is connected, solve the node on the other side
         // and find the corresponding output buffer
         if (input.connection) {
           let { latency, outputs } = visit(input.connection.node)
