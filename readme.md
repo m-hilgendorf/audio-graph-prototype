@@ -1,4 +1,7 @@
 # Audio Scheduling
+
+This is an open draft of an audio scheduling algorithm, including the design rationale.
+
 Code examples are in typescript, not because you should write an audio engine in typescript but because it is a convenient language for proto**typing**. My own experience with TS is limited, so please forgive any unorthodoxies.
 
 --- 
