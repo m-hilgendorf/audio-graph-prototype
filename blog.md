@@ -111,12 +111,12 @@ function schedule (root:Node): Scheduled[] {
     function visit (node:Node): BufferAssignments[] {
         if (!node.visited) {
             // for each output in this port, create a new buffer.
-            for (let output in node.outputs) {
+            for (let output of node.outputs) {
                 output.buffer = new Buffer
             }
 
             // for each input port, find an input buffer
-            for (let input in node.inputs) {
+            for (let input of node.inputs) {
                 // if the input port is connected, solve the node
                 // on the other side and find the corresponding output port. 
                 if (input.connection) {
@@ -181,12 +181,12 @@ function schedule (root:Node): Scheduled[] {
     function visit (node:Node): BufferAssignments[] {
         if (!node.visited) {
             // for each output in this port, acquire a new buffer.
-            for (let output in node.outputs) {
+            for (let output of node.outputs) {
                 output.buffer = acquireBuffer() // << acquire, rather than allocate a buffer.
             }
 
             // for each input port, find the input buffer
-            for (let input in node.inputs) {
+            for (let input of node.inputs) {
                 // if the input port is connected, solve the node on the other side 
                 // and find the corresponding output buffer
                 if (input.connection) {
@@ -204,7 +204,7 @@ function schedule (root:Node): Scheduled[] {
             }
 
             // remember to release the buffers!
-            for (let output in node.outputs) {
+            for (let output of node.outputs) {
                 releaseBuffer(output.buffer)
             }
 
@@ -361,12 +361,12 @@ function schedule (root:Node): Scheduled[] {
     function visit (node:Node): { latency: number; outputs: BufferAssignment[] }{
         if (!node.visited) {
             // for each output in this port, acquire a new buffer.
-            for (let output in node.outputs) {
+            for (let output of node.outputs) {
                 output.buffer = acquireBuffer() // << acquire, rather than allocate a buffer.
             }
 
             // for each input port, find the input buffer
-            for (let input in node.inputs) {
+            for (let input of node.inputs) {
                 // if the input port is connected, solve the node on the other side 
                 // and find the corresponding output buffer
                 if (input.connection) {
@@ -386,7 +386,7 @@ function schedule (root:Node): Scheduled[] {
             }
 
             // remember to release the buffers!
-            for (let output in node.outputs) {
+            for (let output of node.outputs) {
                 releaseBuffer(output.buffer)
             }
 
@@ -456,13 +456,13 @@ function delay (buffer:Buffer, amount:number) {
 }
 
 function render (schedule:Scheduled[]) {
-    for (let { node, inputs, outputs } in schedule) {
-        for (let {port, buffer, compensation } in inputs) {
+    for (let { node, inputs, outputs } of schedule) {
+        for (let {port, buffer, compensation } if inputs) {
             if (compensation) {
                 delay(buffer, compensation)
             }
         }
-        node.proecss(inputs, outputs)
+        node.process(inputs, outputs)
     }
 }
 ```
