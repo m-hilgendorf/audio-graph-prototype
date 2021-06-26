@@ -4,6 +4,14 @@ This is an open draft of an audio scheduling algorithm, including the design rat
 
 Code examples are in typescript, not because you should write an audio engine in typescript but because it is a convenient language for proto**typing**. My own experience with TS is limited, so please forgive any unorthodoxies.
 
+## Repository Structure:
+
+```bash
+docs/      # notes on implementation
+prototype/ # algorithm prototype, in type script
+
+```
+
 --- 
 ## Problem Definition
 ### What is "audio scheduling"? 
