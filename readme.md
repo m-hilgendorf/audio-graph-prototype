@@ -7,9 +7,10 @@ Code examples are in typescript, not because you should write an audio engine in
 ## Repository Structure:
 
 ```bash
-docs/      # notes on implementation
-prototype/ # algorithm prototype, in type script
-
+docs/           # notes on implementation
+prototype/      # algorithm prototype, in typescript
+resource-stack/ # a general purpose resource stack, used internally
+audio-graph/    # the main implementation, in Rust
 ```
 
 --- 
