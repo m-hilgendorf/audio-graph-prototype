@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "audio-graph",
+    "resource-stack"
+]
+
