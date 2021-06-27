@@ -4,19 +4,21 @@
 //!
 //! ## Usage
 //! ```
-//!
 //! // create a new graph
-//! use audio_graph::matrix::Matrix;
+//! use audio_graph::matrix::AdjMatrix;
 //!
-//! let matrix = AdjMatrix::new();
+//! let mut matrix = AdjMatrix::default();
+//!
 //! // connect some nodes to ports
 //! matrix.connect((0, 0), (2, 0)); // connect node 0 port 0 to node 2 port 0
 //! matrix.connect((0, 1), (2, 1)); // connect node 0 port 1 to node 2 port 1
+//!
 //! for (node, port) in matrix.outgoing(0, 0) {
-//!     println("0 is connected to {}.{}", node, port);    
+//!     println!("0 is connected to {}.{}", node, port);    
 //! }
+//!
 //! for (node, port) in matrix.incoming(2, 0) {
-//!     println("2.0 is connected to {}.{}", node, port);
+//!     println!("2.0 is connected to {}.{}", node, port);
 //! }
 //! ```
 
@@ -27,6 +29,16 @@ use std::cmp::Ordering;
 pub enum Dir {
     Incoming,
     Outgoing,
+}
+
+impl std::ops::Neg for Dir {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        match self {
+            Dir::Incoming => Dir::Outgoing,
+            Dir::Outgoing => Dir::Incoming
+        }
+    }
 }
 
 ///! An entry into the matrix
@@ -44,6 +56,17 @@ pub struct AdjMatrix {
     entries: Vec<Entry>,
 }
 
+impl Entry {
+    fn new(row: usize, col: usize, port: usize, dir: Dir) -> Self {
+        Self {
+            row,
+            col,
+            port,
+            dir,
+        }
+    }
+}
+
 impl AdjMatrix {
     /// Lookup algorithm.
     ///
@@ -56,9 +79,18 @@ impl AdjMatrix {
     /// Potential improvement: the vector is always sorted, so a binary search
     /// may be used instead of linear.
     fn lookup(&self, row: usize, col: usize, port: usize) -> Result<usize, usize> {
+        //FIXME: this loop can be cleaned up.
+        //       algorithm:
+        //       - find the first element of the matrix with entry.row == row
+        //       - if no entries are found, return Err(index) where index = index of first entry.row > row.
+        //       - find the first element of the row with entry.col == col
+        //       - if no entry is found, return Err(index) where index = index of the first entry.col > col.
+        //       - return Ok(index) of the first element of the column with entry.port == port.
+        //       - if no entry is found, return Err(index) where index = index of the first entry.port > port.
         let mut idx = 0;
         let mut found_row = false;
         let mut found_col = false;
+
         while idx < self.entries.len() && self.entries[idx].row <= row {
             if found_row {
                 if found_col {
@@ -102,7 +134,7 @@ impl AdjMatrix {
     }
 
     /// Remove all entries corresponding to a row or column (in other words, delete the
-    /// row and column corresponding to `idx`)
+    /// row and column corresponding to `idx`).
     fn remove_all(&mut self, idx: usize) {
         self.entries = self
             .entries
@@ -112,10 +144,47 @@ impl AdjMatrix {
             .collect();
     }
 
+    /// Return the entries in the adjacency matrix for a node.
     fn entries<'a>(&'a self, node: usize) -> impl Iterator<Item = Entry> + 'a {
-        (node..)
+        (node..self.entries.len())
             .take_while(move |i| self.entries[*i].row == self.entries[node].row)
             .map(move |i| self.entries[i])
+    }
+
+    /// Return the adjacent entries to a node given a port.
+    fn adjacent_entries<'a>(
+        &'a self,
+        node: usize,
+        port: usize,
+    ) -> impl Iterator<Item = Entry> + 'a {
+        self.entries(node).filter(move |e| e.port == port)
+    }
+
+    fn dir_entries<'a> (
+        &'a self, 
+        node: usize,
+        port: usize,
+        dir: Dir
+    ) -> impl Iterator<Item = Entry> + 'a {
+        self.adjacent_entries(node, port).filter(move |e| e.dir == dir)
+    }
+
+    /// Return the adjacent incoming entries to a node given a port.
+    fn incoming_entries<'a>(
+        &'a self,
+        node: usize,
+        port: usize,
+    ) -> impl Iterator<Item = Entry> + 'a {
+        self.dir_entries(node, port, Dir::Incoming)
+    }
+
+    /// Return the adjecent outgoing entries to a node given a port.
+    fn outgoing_entries<'a>(
+        &'a self,
+        node: usize,
+        port: usize,
+    ) -> impl Iterator<Item = Entry> + 'a {
+        self.dir_entries(node, port, Dir::Outgoing)
     }
 
     /// Return the adjacencies of an index.
@@ -133,7 +202,7 @@ impl AdjMatrix {
         })
     }
 
-    /// Return an iterator of the incoming edges to the node
+    /// Return an iterator of the incoming edges to the node.
     pub fn incoming<'a>(
         &'a self,
         node: usize,
@@ -146,7 +215,7 @@ impl AdjMatrix {
             })
     }
 
-    /// Return an iterator of the outgoing edges from the node
+    /// Return an iterator of the outgoing edges from the node.
     pub fn outgoing<'a>(
         &'a self,
         node: usize,
@@ -159,20 +228,50 @@ impl AdjMatrix {
             })
     }
 
-    /// Connect two nodes in the graph
+    /// Connect two nodes in the graph, `(src, port) -> (dst, port)`.
     pub fn connect(&mut self, src: (usize, usize), dst: (usize, usize)) {
-        self.insert(Entry {
-            row: src.0,
-            col: dst.0,
-            port: src.1,
-            dir: Dir::Outgoing,
-        });
-        self.insert(Entry {
-            row: dst.0,
-            col: src.0,
-            port: dst.1,
-            dir: Dir::Incoming,
-        });
+        self.insert(Entry::new(src.0, dst.0, src.1, Dir::Outgoing));
+        self.insert(Entry::new(dst.0, src.0, dst.1, Dir::Incoming));
+    }
+
+    /// Disconnect two nodes in the graph, if they are connected.
+    pub fn disconnect(&mut self, src: (usize, usize), dst: (usize, usize)) {
+        match (
+            self.lookup(src.0, dst.0, src.1),
+            self.lookup(dst.0, src.0, dst.1),
+        ) {
+            (Ok(src), Ok(dst)) => {
+                self.entries.remove(src);
+                self.entries.remove(dst - 1);
+            }
+            _ => (), // FIXME: Error here
+        }
+    }
+
+    /// Return the indegree (number of incoming edges) to a node in the graph
+    pub fn indegree(&self, node: usize) -> usize {
+        self.degree(node, Dir::Incoming)
+    }
+
+    /// Return the outdegree (number of outgoing edges) to a node in the graph
+    pub fn outdegree(&self, node: usize) -> usize {
+        self.degree(node, Dir::Outgoing)
+    }
+
+    /// Return the number of nodes that this graph is aware of.
+    pub fn num_nodes(&self) -> usize {
+        self.entries.last().map(|e| e.row).unwrap_or(0)
+    }
+
+    /// Returns the number of ports that this graph is aware of for a given node.
+    pub fn num_ports(&self, node:usize) -> usize {
+        self.entries(node).fold(0, |count, e| count.max(e.port))
+    }
+
+    /// Internal. Returns the indegree or outdegree of a node.
+    fn degree(&self, node: usize, dir: Dir) -> usize {
+        self.entries(node)
+            .fold(0, |count, e| count + if e.dir == dir { 1 } else { 0 })
     }
 }
 
@@ -183,42 +282,12 @@ mod tests {
     fn matrix_lookup() {
         let matrix = AdjMatrix {
             entries: vec![
-                Entry {
-                    row: 0,
-                    col: 1,
-                    port: 0,
-                    dir: Dir::Outgoing,
-                },
-                Entry {
-                    row: 0,
-                    col: 3,
-                    port: 0,
-                    dir: Dir::Outgoing,
-                },
-                Entry {
-                    row: 1,
-                    col: 0,
-                    port: 0,
-                    dir: Dir::Incoming,
-                },
-                Entry {
-                    row: 1,
-                    col: 3,
-                    port: 0,
-                    dir: Dir::Outgoing,
-                },
-                Entry {
-                    row: 3,
-                    col: 0,
-                    port: 0,
-                    dir: Dir::Incoming,
-                },
-                Entry {
-                    row: 3,
-                    col: 1,
-                    port: 0,
-                    dir: Dir::Incoming,
-                },
+                Entry::new(0, 1, 0, Dir::Outgoing),
+                Entry::new(0, 3, 0, Dir::Outgoing),
+                Entry::new(1, 0, 0, Dir::Incoming),
+                Entry::new(1, 3, 0, Dir::Outgoing),
+                Entry::new(3, 0, 0, Dir::Incoming),
+                Entry::new(3, 1, 0, Dir::Incoming),
             ],
         };
         assert_eq!(matrix.lookup(0, 1, 0), Ok(0));
@@ -234,71 +303,31 @@ mod tests {
 
     #[test]
     fn matrix_insertion() {
-        let mut matrix = AdjMatrix { entries: vec![] };
-        matrix.insert(Entry {
-            row: 0,
-            col: 1,
-            port: 0,
-            dir: Dir::Outgoing,
-        });
-        matrix.insert(Entry {
-            row: 1,
-            col: 0,
-            port: 0,
-            dir: Dir::Incoming,
-        });
-        matrix.insert(Entry {
-            row: 0,
-            col: 3,
-            port: 0,
-            dir: Dir::Outgoing,
-        });
-        matrix.insert(Entry {
-            row: 3,
-            col: 0,
-            port: 0,
-            dir: Dir::Incoming,
-        });
+        let mut matrix = AdjMatrix::default();
+        matrix.insert(Entry::new(0, 1, 0, Dir::Outgoing));
+        matrix.insert(Entry::new(0, 3, 0, Dir::Outgoing));
+        matrix.insert(Entry::new(1, 0, 0, Dir::Incoming));
+        matrix.insert(Entry::new(1, 3, 0, Dir::Outgoing));
         assert_eq!(matrix.lookup(0, 1, 0), Ok(0));
         assert_eq!(matrix.lookup(0, 3, 0), Ok(1));
         assert_eq!(matrix.lookup(1, 0, 0), Ok(2));
-        assert_eq!(matrix.lookup(3, 0, 0), Ok(3));
+        assert_eq!(matrix.lookup(1, 3, 0), Ok(3));
     }
 
     #[test]
     fn matrix_removal() {
-        let mut matrix = AdjMatrix { entries: vec![] };
-        matrix.insert(Entry {
-            row: 0,
-            col: 1,
-            port: 0,
-            dir: Dir::Outgoing,
-        });
-        matrix.insert(Entry {
-            row: 0,
-            col: 3,
-            port: 0,
-            dir: Dir::Outgoing,
-        });
-        matrix.insert(Entry {
-            row: 1,
-            col: 0,
-            port: 0,
-            dir: Dir::Incoming,
-        });
-        matrix.insert(Entry {
-            row: 3,
-            col: 0,
-            port: 0,
-            dir: Dir::Incoming,
-        });
+        let mut matrix = AdjMatrix::default();
+        matrix.insert(Entry::new(0, 1, 0, Dir::Outgoing));
+        matrix.insert(Entry::new(0, 3, 0, Dir::Outgoing));
+        matrix.insert(Entry::new(1, 0, 0, Dir::Incoming));
+        matrix.insert(Entry::new(1, 3, 0, Dir::Outgoing));
         assert_eq!(matrix.lookup(0, 1, 0), Ok(0));
         assert_eq!(matrix.lookup(0, 3, 0), Ok(1));
         assert_eq!(matrix.lookup(1, 0, 0), Ok(2));
-        assert_eq!(matrix.lookup(3, 0, 0), Ok(3));
+        assert_eq!(matrix.lookup(1, 3, 0), Ok(3));
         matrix.remove(0, 3, 0);
         assert_eq!(matrix.lookup(1, 0, 0), Ok(1));
-        assert_eq!(matrix.lookup(3, 0, 0), Ok(2));
+        assert_eq!(matrix.lookup(1, 3, 0), Ok(2));
     }
 
     #[test]
