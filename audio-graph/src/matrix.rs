@@ -1,5 +1,27 @@
 //! # `audio_graph::matrix`
+//!
+//! An adjacency matrix for nodes with multiple ports.
+//!
+//! ## Usage
+//! ```
+//!
+//! // create a new graph
+//! use audio_graph::matrix::Matrix;
+//!
+//! let matrix = AdjMatrix::new();
+//! // connect some nodes to ports
+//! matrix.connect((0, 0), (2, 0)); // connect node 0 port 0 to node 2 port 0
+//! matrix.connect((0, 1), (2, 1)); // connect node 0 port 1 to node 2 port 1
+//! for (node, port) in matrix.outgoing(0, 0) {
+//!     println("0 is connected to {}.{}", node, port);    
+//! }
+//! for (node, port) in matrix.incoming(2, 0) {
+//!     println("2.0 is connected to {}.{}", node, port);
+//! }
+//! ```
+
 use std::cmp::Ordering;
+
 /// The direction of an edge in a matrix.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Dir {
@@ -7,8 +29,9 @@ pub enum Dir {
     Outgoing,
 }
 
+///! An entry into the matrix
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Entry {
+struct Entry {
     row: usize,
     col: usize,
     port: usize,
